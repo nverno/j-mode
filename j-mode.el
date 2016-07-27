@@ -44,26 +44,16 @@
 ;; USA.
 
 ;;; Code:
-(require 'j-console)
+(declare-function j-console "j-console")
+(autoload 'j-console-execute-region "j-console")
+(autoload 'j-console-execute-line "j-console")
+(autoload 'j-console-execute-buffer "j-console")
 
 (defgroup j nil
   "Major mode for editing J source files."
   :group 'languages
   :prefix "j-")
 
-(defconst j-mode-version "1.1.1"
-  "`j-mode' version")
-
-
-;; ------------------------------------------------------------
-;;* User Variables
-
-;; Required eval depth for older systems
-;; (setq max-lisp-eval-depth (max 500 max-lisp-eval-depth))
-
-
-;; ------------------------------------------------------------
-;;* Font Lock
 (defgroup j-font-lock nil
   "font-lock extension for j-mode"
   :group 'j
@@ -74,25 +64,34 @@
   :group 'j
   :group 'j-font-lock)
 
+
+;; ------------------------------------------------------------
+;;* User Variables
+
+;; @@FIXME: vary with background or inherit?
 (defface j-verb-face
-  `((t (:foreground "Red")))
+  '((t (:foreground "Red")))
   "Font Lock mode face used to higlight verbs"
   :group 'j-faces)
 
 (defface j-adverb-face
-  `((t (:foreground "Green")))
+  '((t (:foreground "Green")))
   "Font Lock mode face used to higlight adverbs"
   :group 'j-faces)
 
 (defface j-conjunction-face
-  `((t (:foreground "Blue")))
+  '((t (:foreground "Blue")))
   "Font Lock mode face used to higlight conjunctions"
   :group 'j-faces)
 
 (defface j-other-face
-  `((t (:foreground "Black")))
+  '((t (:foreground "Black")))
   "Font Lock mode face used to higlight others"
   :group 'j-faces)
+
+
+;; ------------------------------------------------------------
+;;* Font Lock
 
 (defvar j-font-lock-constants '())
 
@@ -151,64 +150,78 @@
 (defvar j-font-lock-keywords
   `(
     ("\\([_a-zA-Z0-9]+\\)\s*\\(=[.:]\\)"
-     (1 font-lock-variable-name-face) (2 j-other-face))
+     (1 font-lock-variable-name-face)
+     (2 font-lock-constant-face))
 
     (,(regexp-opt j-font-lock-foreign-conjunctions) . font-lock-warning-face)
     (,(concat (regexp-opt j-font-lock-control-structures)
               "\\|\\(?:\\(?:for\\|goto\\|label\\)_[a-zA-Z]+\\.\\)")
      . font-lock-keyword-face)
     (,(regexp-opt j-font-lock-constants) . font-lock-constant-face)
-    (,(regexp-opt j-font-lock-len-3-verbs) . j-verb-face)
-    (,(regexp-opt j-font-lock-len-3-conjunctions) . j-conjunction-face)
+    (,(regexp-opt j-font-lock-len-3-verbs) . 'j-verb-face)
+    (,(regexp-opt j-font-lock-len-3-conjunctions) . 'j-conjunction-face)
     ;;(,(regexp-opt j-font-lock-len-3-others) . )
-    (,(regexp-opt j-font-lock-len-2-verbs) . j-verb-face)
-    (,(regexp-opt j-font-lock-len-2-adverbs) . j-adverb-face)
-    (,(regexp-opt j-font-lock-len-2-conjunctions) . j-conjunction-face)
+    (,(regexp-opt j-font-lock-len-2-verbs) . 'j-verb-face)
+    (,(regexp-opt j-font-lock-len-2-adverbs) . 'j-adverb-face)
+    (,(regexp-opt j-font-lock-len-2-conjunctions) . 'j-conjunction-face)
     ;;(,(regexp-opt j-font-lock-len-2-others) . )
-    (,(regexp-opt j-font-lock-len-1-verbs) . j-verb-face)
-    (,(regexp-opt j-font-lock-len-1-adverbs) . j-adverb-face)
-    (,(regexp-opt j-font-lock-len-1-conjunctions) . j-conjunction-face)
+    (,(regexp-opt j-font-lock-len-1-verbs) . 'j-verb-face)
+    (,(regexp-opt j-font-lock-len-1-adverbs) . 'j-adverb-face)
+    (,(regexp-opt j-font-lock-len-1-conjunctions) . 'j-conjunction-face)
     ;;(,(regexp-opt j-font-lock-len-1-other) . )
     ) "J Mode font lock keys words")
 
-(defun j-font-lock-syntactic-face-function (state)
-  "Function for detection of string vs. Comment Note: J comments
-are three chars longs, there is no easy / evident way to handle
-this in emacs and it poses problems"
-  (if (nth 3 state) font-lock-string-face
-    (let* ((start-pos (nth 8 state)))
-      (and (<= (+ start-pos 3) (point-max))
-           (eq (char-after start-pos) ?N)
-           (string= (buffer-substring-no-properties
-                     start-pos (+ start-pos 3)) "NB.")
-           font-lock-comment-face))))
+;; (defun j-font-lock-syntactic-face-function (state)
+;;   "Function for detection of string vs. Comment Note: J comments
+;; are three chars longs, there is no easy / evident way to handle
+;; this in emacs and it poses problems"
+;;   (if (nth 3 state) font-lock-string-face
+;;     (let* ((start-pos (nth 8 state)))
+;;       (and (<= (+ start-pos 3) (point-max))
+;;            (eq (char-after start-pos) ?N)
+;;            (string= (buffer-substring-no-properties
+;;                      start-pos (+ start-pos 3)) "NB.")
+;;            font-lock-comment-face))))
+
+;; Support three letter comments
+(defconst j-syntax-propertize
+  (syntax-propertize-rules
+   ("\\(NB\\.\\).*" (1 "<"))))
+
+;; ------------------------------------------------------------
+;;* Code helpers
+(define-abbrev-table 'j-mode-abbrev-table ())
 
 
 ;; ------------------------------------------------------------
 ;;* Major Mode
 
-;; Syntax
-(defvar j-font-lock-syntax-table
+;;** Syntax
+(defvar j-mode-syntax-table
   (let ((table (make-syntax-table)))
-    (modify-syntax-entry ?\{ "."   table)
-    (modify-syntax-entry ?\} "."   table)
-    (modify-syntax-entry ?\[ "."   table)
-    (modify-syntax-entry ?\] "."   table)
-    (modify-syntax-entry ?\" "."   table)
-    (modify-syntax-entry ?\\ "."   table)
-    (modify-syntax-entry ?\. "w"   table)
-    (modify-syntax-entry ?\: "w"   table)
+    (modify-syntax-entry ?\% "_"   table)
+    (modify-syntax-entry ?\! "_"   table)
+    (modify-syntax-entry ?\# "_"   table)
+    (modify-syntax-entry ?\; "_"   table)
+    (modify-syntax-entry ?\, "_"   table)
+    (modify-syntax-entry ?\$ "_"   table)
+    (modify-syntax-entry ?\{ "_"   table)
+    (modify-syntax-entry ?\} "_"   table)
+    (modify-syntax-entry ?\[ "_"   table)
+    (modify-syntax-entry ?\] "_"   table)
+    (modify-syntax-entry ?\" "_"   table)
+    (modify-syntax-entry ?\\ "_"   table)
+    (modify-syntax-entry ?\. "_"   table)
+    (modify-syntax-entry ?\: "_"   table)
     (modify-syntax-entry ?\( "()"  table)
     (modify-syntax-entry ?\) ")("  table)
     (modify-syntax-entry ?\' "\""  table)
-    (modify-syntax-entry ?\N "w 1" table)
-    (modify-syntax-entry ?\B "w 2" table)
     (modify-syntax-entry ?\n ">"   table)
     (modify-syntax-entry ?\r ">"   table)
     table)
   "Syntax table for j-mode")
 
-;; Menu
+;;** Menu
 (defvar j-mode-menu
   '("J"
     ["Start J Console" j-console t]
@@ -220,6 +233,7 @@ this in emacs and it poses problems"
     ["J Symbol Dynamic Look-up" j-help-lookup-symbol-at-point t]
     ["Help on J-mode" describe-mode t]))
 
+;;** Map
 (defvar j-mode-map
   (let ((map (make-sparse-keymap)))
     (easy-menu-define nil map nil j-mode-menu)
@@ -227,27 +241,25 @@ this in emacs and it poses problems"
     (define-key map (kbd "C-c C-c") 'j-console-execute-buffer)
     (define-key map (kbd "C-c C-r") 'j-console-execute-region)
     (define-key map (kbd "C-c C-l") 'j-console-execute-line)
-    (define-key map (kbd "C-c h")   'j-help-lookup-symbol)
-    (define-key map (kbd "C-c C-h") 'j-help-lookup-symbol-at-point)
+    (define-key map (kbd "C-c C-d") 'j-help-lookup-symbol)
+    (define-key map (kbd "C-c ?")   'j-help-lookup-symbol-at-point)
     map)
   "Keymap for J major mode")
 
 ;;;###autoload
 (define-derived-mode j-mode prog-mode "J"
-  "Major mode for editing J.\n
+  "Major mode for editing J source files.\n
 \\{j-mode-map}"
-  (kill-all-local-variables)
-  (set-syntax-table j-font-lock-syntax-table)
-  (set (make-local-variable 'comment-start) "NB. ")
-  (set (make-local-variable 'comment-start-skip)
-       "\\(\\(^\\|[^\\\\\n]\\)\\(\\\\\\\\\\)*\\)NB. *")
-  (set (make-local-variable 'font-lock-comment-start-skip) "NB. *")
-  (set (make-local-variable 'font-lock-defaults)
-       '(j-font-lock-keywords
-         nil nil nil nil
-         ;;(font-lock-mark-block-function . mark-defun)
-         (font-lock-syntactic-face-function
-          . j-font-lock-syntactic-face-function))))
+  (setq-local comment-start "NB. ")
+  (setq-local comment-start-skip
+              "\\(\\(^\\|[^\\\\\n]\\)\\(\\\\\\\\\\)*\\)NB. *")
+  (setq font-lock-defaults '(j-font-lock-keywords nil nil nil nil))
+  (setq-local syntax-propertize-function j-syntax-propertize)
+  (setq-local local-abbrev-table j-mode-abbrev-table)
+  (when (featurep 'smartparens)
+    (sp-local-pair 'j-mode "{" nil :actions nil)
+    (sp-local-pair 'j-mode "[" nil :actions nil))
+  )
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.ij[rstp]$" . j-mode))

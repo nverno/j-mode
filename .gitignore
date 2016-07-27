@@ -8,3 +8,4 @@
 
 # j-help data cache
 .help_cache/
+.dir-locals.el
