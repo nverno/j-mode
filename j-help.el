@@ -1,4 +1,3 @@
-
 ;;; j-help.el --- Documentation extention for j-mode
 
 ;; Copyright (C) 2012 Zachary Elliott
@@ -41,21 +40,35 @@
 ;; USA.
 
 ;;; Code:
+(eval-when-compile
+  (require 'cl-lib))
 
-;;(set 'lexical-binding t)
+(defgroup j-help nil
+  "Documentation extension for `j-mode'."
+  :group 'j
+  :prefix "j-help-")
 
-(defmacro if-let ( binding then &optional else )
-  "Bind value according to BINDING and check for truthy-ness
-If the test passes then eval THEN with the BINDING varlist bound
-If no, eval ELSE with no binding"
-  (let* ((sym (caar binding))
-         (tst (cdar binding))
-         (gts (gensym)))
-    `(let ((,gts ,@tst))
-       (if ,gts
-         (let ((,sym ,gts))
-           ,then)
-         ,else))))
+;; ------------------------------------------------------------
+;;* User Variables
+
+(defcustom j-help-local-dictionary-url ""
+  "Path to the local instance of the j-dictionary"
+  :type 'string
+  :group 'j-help)
+
+(defcustom j-help-remote-dictionary-url "http://www.jsoftware.com/help/dictionary"
+  "Path to the remote instance of the j-dictionary"
+  :type 'string
+  :group 'j-help)
+
+(defcustom j-help-symbol-search-branch-limit 5
+  "Distance from initial point they system can search for a valid symbol."
+  :type 'integer
+  :group 'j-help)
+
+
+;; ------------------------------------------------------------
+;;* Internal
 
 (defun group-by* ( list fn prev coll agr )
   "Helper method for the group-by function. Should not be called directly."
@@ -72,36 +85,6 @@ If no, eval ELSE with no binding"
 It groups the objects in LIST according to the predicate FN"
   (let ((sl (sort list (lambda (x y) (< (funcall fn x) (funcall fn y))))))
     (group-by* sl fn '() '() '())))
-
-(unless (fboundp 'some)
-  (defun some ( fn list )
-    (when list
-      (let ((val (funcall fn (car list))))
-	(if val val (some fn (cdr list)))))))
-
-(unless (fboundp 'caddr)
-  (defun caddr ( list )
-    (car (cdr (cdr list)))))
-
-(defgroup j-help nil
-  "Documentation extention for j-mode"
-  :group 'applications
-  :prefix "j-help-")
-
-(defcustom j-help-local-dictionary-url ""
-  "Path to the local instance of the j-dictionary"
-  :type 'string
-  :group 'j-help)
-
-(defcustom j-help-remote-dictionary-url "http://www.jsoftware.com/help/dictionary"
-  "Path to the remote instance of the j-dictionary"
-  :type 'string
-  :group 'j-help)
-
-(defcustom j-help-symbol-search-branch-limit 5
-  "Distance from initial point they system can search for a valid symbol."
-  :type 'integer
-  :group 'j-help)
 
 (defconst j-help-voc-alist
   '(("~" . "d220v") ("}" . "d530n") ("|" . "d230") ("#" . "d400")
@@ -170,7 +153,7 @@ It groups the objects in LIST according to the predicate FN"
 
 string * int -> (string * string) list"
   (unless (or (< point 0) (< (length s) point))
-    (some
+    (cl-some
      (lambda (x)
        (let* ((check-size (car x)))
          (if (and
@@ -178,7 +161,7 @@ string * int -> (string * string) list"
               (string-match (cadr x) (substring s point (+ point check-size))))
            (let* ((m (match-data))
                   (ss (substring s (+ point (car m)) (+ point (cadr m)))))
-             (assoc ss (caddr x))))))
+             (assoc ss (cl-caddr x))))))
      j-help-dictionary-data-block)))
 
 (defun j-help-determine-symbol-at-point ( point )
@@ -227,7 +210,6 @@ string * int -> (string * string) list"
     (if symbol
         (j-help-lookup-symbol (car symbol))
       (error "No symbol could be determined for point %d" point))))
-
 
 (provide 'j-help)
 

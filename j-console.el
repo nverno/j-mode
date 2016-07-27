@@ -1,5 +1,4 @@
-
-;;; j-mode.el --- Major mode for editing J programs
+;;; j-console.el --- Interact with inferior J process in Emacs.
 
 ;; Copyright (C) 2012 Zachary Elliott
 ;;
@@ -12,7 +11,7 @@
 
 ;;; Commentary:
 
-;;
+;; Run inferior J process in emacs.
 
 ;;; License:
 
@@ -33,18 +32,17 @@
 
 ;;; Code:
 
-
 (require 'comint)
-
-
-;; (defconst j-console-version "1.1.1"
-;;   "`j-console' version")
 
 (defgroup j-console nil
   "REPL integration extention for `j-mode'"
-  :group 'applications
   :group 'j
   :prefix "j-console-")
+
+;; ------------------------------------------------------------
+;;* User Variables
+
+;; @@FIXME: should add a prompt
 
 (defcustom j-console-cmd "jconsole"
   "Name of the executable used for the J REPL session"
@@ -53,7 +51,7 @@
 
 (defcustom j-console-cmd-args '()
   "Arguments to be passed to the j-console-cmd on start"
-  :type 'string
+  :type '(repeat string)
   :group 'j-console)
 
 (defcustom j-console-cmd-init-file nil
@@ -61,13 +59,17 @@
   j-console-cmd on start
 
 Should be NIL if there is no file not the empty string"
-  :type 'string
+  :type '(choice nil file)
   :group 'j-console)
 
 (defcustom j-console-cmd-buffer-name "J"
   "Name of the buffer which contains the j-console-cmd session"
   :type 'string
   :group 'j-console)
+
+
+;; ------------------------------------------------------------
+;;* Internal
 
 (defvar j-console-comint-input-filter-function nil
   "J mode specific mask for comint input filter function")
@@ -129,7 +131,7 @@ the containing buffer"
         (session (j-console-ensure-session)))
     (pop-to-buffer (process-buffer session))
     (goto-char (point-max))
-    (insert-string (format "\n%s\n" region))
+    (insert (format "\n%s\n" region))
     (comint-send-input)))
 
 (defun j-console-execute-line ()

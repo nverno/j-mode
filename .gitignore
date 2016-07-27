@@ -2,6 +2,9 @@
 *~
 *\#*\#
 *.\#*
+*loaddefs.el
+*autoloads.el
+*.elc
 
 # j-help data cache
 .help_cache/
