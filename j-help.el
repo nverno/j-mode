@@ -1,4 +1,4 @@
-;;; j-help.el --- Documentation extention for j-mode
+;;; j-help.el --- Documentation extention for j-mode -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2012 Zachary Elliott
 ;;
@@ -41,15 +41,13 @@
 
 ;;; Code:
 (eval-when-compile
-  (require 'cl-lib))
+  (require 'cl-lib)
+  (require 'subr-x))
 
 (defgroup j-help nil
   "Documentation extension for `j-mode'."
   :group 'j
   :prefix "j-help-")
-
-;; ------------------------------------------------------------
-;;* User Variables
 
 (defcustom j-help-local-dictionary-url ""
   "Path to the local instance of the j-dictionary"
@@ -65,10 +63,6 @@
   "Distance from initial point they system can search for a valid symbol."
   :type 'integer
   :group 'j-help)
-
-
-;; ------------------------------------------------------------
-;;* Internal
 
 (defun group-by* ( list fn prev coll agr )
   "Helper method for the group-by function. Should not be called directly."
@@ -119,11 +113,12 @@ It groups the objects in LIST according to the predicate FN"
   "(string * string) alist")
 
 (defconst j-help-dictionary-data-block
-  (mapcar
-   (lambda (l) (list (length (caar l))
-                     (regexp-opt (mapcar 'car l))
-                     l))
-   (delq nil (group-by j-help-voc-alist (lambda (x) (length (car x))))))
+  (eval-when-compile
+    (mapcar
+     (lambda (l) (list (length (caar l))
+                  (regexp-opt (mapcar 'car l))
+                  l))
+     (delq nil (group-by j-help-voc-alist (lambda (x) (length (car x)))))))
   "(int * string * (string * string) alist) list")
 
 (defun j-help-valid-dictionary ()
@@ -140,7 +135,7 @@ It groups the objects in LIST according to the predicate FN"
   (let ((dic (j-help-valid-dictionary)))
     (if (or (not alist-data) (string= dic ""))
         (error "%s" "No dictionary found. Please specify a dictionary.")
-      (let ((name (car alist-data))
+      (let ((_name (car alist-data))
             (doc-name (cdr alist-data)))
         (format "%s/%s.%s" dic doc-name "htm")))))
 
@@ -185,12 +180,13 @@ string * int -> (string * string) list"
        next-symbol))))
 
 (defun j-help-branch-determine-symbol-at-point ( point )
-  ""
+  "Find the symbol nearest to POINT."
   (save-excursion
     (goto-char point)
     (j-help-branch-determine-symbol-at-point*
      (buffer-substring-no-properties (point-at-bol) (point-at-eol))
-     (- (max (- point j-help-symbol-search-branch-limit) (point-at-bol)) (point-at-bol))
+     (- (max (- point j-help-symbol-search-branch-limit) (point-at-bol))
+        (point-at-bol))
      (- point (point-at-bol))
      nil)))
 
@@ -203,13 +199,12 @@ string * int -> (string * string) list"
     (browse-url url)))
 
 ;;;###autoload
-(defun j-help-lookup-symbol-at-point ( point )
+(defun j-help-lookup-symbol-at-point (symbol)
   "Determine the symbol nearest to POINT and look it up in the dictionary"
-  (interactive "d")
-  (let ((symbol (j-help-branch-determine-symbol-at-point point)))
-    (if symbol
-        (j-help-lookup-symbol (car symbol))
-      (error "No symbol could be determined for point %d" point))))
+  (interactive (list (j-help-branch-determine-symbol-at-point (point))))
+  (if symbol
+      (j-help-lookup-symbol (car symbol))
+    (call-interactively #'j-help-lookup-symbol)))
 
 (provide 'j-help)
 

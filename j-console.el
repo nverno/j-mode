@@ -1,11 +1,11 @@
-;;; j-console.el --- Interact with inferior J process in Emacs.
+;;; j-console.el --- Interact with inferior J process in Emacs.  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2012 Zachary Elliott
 ;;
 ;; Authors: Zachary Elliott <ZacharyElliott1@gmail.com>
 ;; URL: http://github.com/zellio/j-mode
 ;; Version: 1.1.1
-;; Keywords: J, Langauges
+;; Keywords: J, Languages
 
 ;; This file is not part of GNU Emacs.
 
@@ -39,12 +39,7 @@
   :group 'j
   :prefix "j-console-")
 
-;; ------------------------------------------------------------
-;;* User Variables
-
-;; @@FIXME: should add a prompt
-
-(defcustom j-console-cmd "jconsole"
+(defcustom j-console-cmd "ijconsole"
   "Name of the executable used for the J REPL session"
   :type 'string
   :group 'j-console)
@@ -66,10 +61,6 @@ Should be NIL if there is no file not the empty string"
   "Name of the buffer which contains the j-console-cmd session"
   :type 'string
   :group 'j-console)
-
-
-;; ------------------------------------------------------------
-;;* Internal
 
 (defvar j-console-comint-input-filter-function nil
   "J mode specific mask for comint input filter function")
