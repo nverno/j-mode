@@ -1,4 +1,4 @@
-;;; j-mode.el --- Major mode for editing J programs
+;;; j-mode.el --- Major mode for editing J programs  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2012 Zachary Elliott
 ;;
